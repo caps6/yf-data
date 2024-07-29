@@ -241,10 +241,13 @@ class YahooProvider:
 
         """
 
-        dfs = []
+        if isinstance(tickers, str):
+            tickers = [tickers]
 
         # Prepare HTTP request.
         headers = self._prepare_headers()
+
+        dfs = []
 
         for ticker in tickers:
 

@@ -120,18 +120,20 @@ def parse_dividends(body: dict, ticker: str) -> DataFrame:
 
     data = body["chart"]["result"][0]
 
-    dict_dividends = data["events"]["dividends"]
-
     dates = []
     dividends = []
-    for uts in dict_dividends:
 
-        if "amount" in dict_dividends[uts]:
+    if "events" in data:
 
-            ts = utils.timestamp2datetime(int(uts))
+        dict_dividends = data["events"]["dividends"]
 
-            dates.append(ts)
-            dividends.append(dict_dividends[uts]["amount"])
+        for uts in dict_dividends:
+
+            if "amount" in dict_dividends[uts]:
+
+                ts = utils.timestamp2datetime(int(uts))
+                dates.append(ts)
+                dividends.append(dict_dividends[uts]["amount"])
 
     df = DataFrame(
         data={
