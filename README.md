@@ -11,8 +11,8 @@ Current Version: 0.1.1
 
 ### Features
 
-Data include OHLC values for:
-- stocks and exchange rates
+Data include:
+- OHLC values for stocks and exchange rates
 - dividends
 - financial data of companies (income and balance sheets).
 
