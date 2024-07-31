@@ -22,7 +22,7 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
     data = body["chart"]["result"][0]
 
     metadata = data["meta"]
-    if metadata["instrumentType"] == "EQUITY":
+    if metadata["instrumentType"] == "EQUITY" or metadata["instrumentType"] == "ETF":
         code_name = "ticker"
     elif metadata["instrumentType"] == "CURRENCY":
         code_name = "pair"
