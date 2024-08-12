@@ -17,7 +17,7 @@ except FileNotFoundError:
 
 setup(
     name="yf-data",
-    version="0.1.3",
+    version="0.1.4",
     keywords="yahoo finance data",
     description=DESCRIPTION,
     packages=packages,
