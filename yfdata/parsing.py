@@ -29,25 +29,38 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
     else:
         raise ValueError("Instrument type not supported.")
 
-    ts = data["timestamp"]
+    if "timestamp" in data and "indicators" in data:
 
-    quotes = data["indicators"]["quote"][0]
+        ts = data["timestamp"]
+        quotes = data["indicators"]["quote"][0]
 
-    df = DataFrame(
-        data={
-            "ts": ts,
-            "o": quotes["open"],
-            "h": quotes["high"],
-            "l": quotes["low"],
-            "c": quotes["close"],
-            "v": quotes["volume"],
-        }
-    )
+        df = DataFrame(
+            data={
+                "ts": ts,
+                "o": quotes["open"],
+                "h": quotes["high"],
+                "l": quotes["low"],
+                "c": quotes["close"],
+                "v": quotes["volume"],
+            }
+        )
+
+    else:
+        df = DataFrame(
+            data={
+                "ts": [],
+                "o": [],
+                "h": [],
+                "l": [],
+                "c": [],
+                "v": [],
+            }
+        )
 
     df[code_name] = ticker_or_pair.lower()
     df["ts"] = pd.to_datetime(df["ts"], unit="s")
-    # .dt.tz_convert('Europe/Paris').dt.tz_convert('UTC')
 
+    # Reorder the columns.
     df = df[[code_name, "ts", "o", "h", "l", "c", "v"]]
 
     return df
