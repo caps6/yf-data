@@ -29,7 +29,7 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
     else:
         raise ValueError("Instrument type not supported.")
 
-    if "timestamp" in data and "indicators" in data:
+    if isinstance(data, dict) and "timestamp" in data and "indicators" in data:
 
         ts = data["timestamp"]
         quotes = data["indicators"]["quote"][0]
@@ -136,7 +136,7 @@ def parse_dividends(body: dict, ticker: str) -> DataFrame:
     dates = []
     dividends = []
 
-    if "events" in data:
+    if isinstance(data, dict) and "events" in data:
 
         dict_dividends = data["events"]["dividends"]
 
