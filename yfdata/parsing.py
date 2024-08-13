@@ -19,35 +19,58 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
 
     """
 
-    data = body["chart"]["result"][0]
+    df = None
 
-    metadata = data["meta"]
-    if metadata["instrumentType"] == "EQUITY" or metadata["instrumentType"] == "ETF":
-        code_name = "ticker"
-    elif metadata["instrumentType"] == "CURRENCY":
-        code_name = "pair"
-    else:
-        raise ValueError("Instrument type not supported.")
+    result = body["chart"]["result"]
 
-    ts = data["timestamp"]
+    if isinstance(result, list) and len(result) > 0:
 
-    quotes = data["indicators"]["quote"][0]
+        data = body["chart"]["result"][0]
 
-    df = DataFrame(
-        data={
-            "ts": ts,
-            "o": quotes["open"],
-            "h": quotes["high"],
-            "l": quotes["low"],
-            "c": quotes["close"],
-            "v": quotes["volume"],
-        }
-    )
+        metadata = data["meta"]
+        if (
+            metadata["instrumentType"] == "EQUITY"
+            or metadata["instrumentType"] == "ETF"
+        ):
+            code_name = "ticker"
+        elif metadata["instrumentType"] == "CURRENCY":
+            code_name = "pair"
+        else:
+            raise ValueError("Instrument type not supported.")
+
+        if isinstance(data, dict) and "timestamp" in data and "indicators" in data:
+
+            ts = data["timestamp"]
+            quotes = data["indicators"]["quote"][0]
+
+            df = DataFrame(
+                data={
+                    "ts": ts,
+                    "o": quotes["open"],
+                    "h": quotes["high"],
+                    "l": quotes["low"],
+                    "c": quotes["close"],
+                    "v": quotes["volume"],
+                }
+            )
+
+    if df is None:
+        code_name = "instrument"
+        df = DataFrame(
+            data={
+                "ts": [],
+                "o": [],
+                "h": [],
+                "l": [],
+                "c": [],
+                "v": [],
+            }
+        )
 
     df[code_name] = ticker_or_pair.lower()
     df["ts"] = pd.to_datetime(df["ts"], unit="s")
-    # .dt.tz_convert('Europe/Paris').dt.tz_convert('UTC')
 
+    # Reorder the columns.
     df = df[[code_name, "ts", "o", "h", "l", "c", "v"]]
 
     return df
@@ -87,15 +110,15 @@ def parse_financials(body: dict, ticker: str, freq: str, mapping: dict) -> DataF
                     dates.append(item["asOfDate"])
                     values.append(float(item["reportedValue"]["raw"]))
 
-            df = DataFrame(
-                data={
-                    "date": dates,
-                    "value": values,
-                }
-            )
+        df = DataFrame(
+            data={
+                "date": dates,
+                "value": values,
+            }
+        )
 
-            df["metric"] = mapping[yahoo_metric_name]
-            dfs.append(df)
+        df["metric"] = mapping[yahoo_metric_name]
+        dfs.append(df)
 
         df = pd.concat(dfs, ignore_index=True)
         df["ticker"] = ticker.lower()
@@ -118,22 +141,26 @@ def parse_dividends(body: dict, ticker: str) -> DataFrame:
 
     """
 
-    data = body["chart"]["result"][0]
-
     dates = []
     dividends = []
 
-    if "events" in data:
+    result = body["chart"]["result"]
 
-        dict_dividends = data["events"]["dividends"]
+    if isinstance(result, list) and len(result) > 0:
 
-        for uts in dict_dividends:
+        data = result[0]
 
-            if "amount" in dict_dividends[uts]:
+        if isinstance(data, dict) and "events" in data:
 
-                ts = utils.timestamp2datetime(int(uts))
-                dates.append(ts)
-                dividends.append(dict_dividends[uts]["amount"])
+            dict_dividends = data["events"]["dividends"]
+
+            for uts in dict_dividends:
+
+                if "amount" in dict_dividends[uts]:
+
+                    ts = utils.timestamp2datetime(int(uts))
+                    dates.append(ts)
+                    dividends.append(dict_dividends[uts]["amount"])
 
     df = DataFrame(
         data={

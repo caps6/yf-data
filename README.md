@@ -1,12 +1,11 @@
 # yf-data
 
 ![application-build](https://github.com/caps6/yf-data/actions/workflows/python-build.yml/badge.svg)
-![GitHub Downloads](https://img.shields.io/github/downloads/caps6/yf-data/total)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/yfdata)
 
 A simple-but-working python module that returns data from Yahoo Finance.
 
-Current Version: 0.1.2
+Current Version: 0.1.5
 
 
 ### Features
