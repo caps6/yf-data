@@ -5,7 +5,7 @@
 
 A simple-but-working python module that returns data from Yahoo Finance.
 
-Current Version: 0.1.5
+Current Version: 0.1.6
 
 
 ### Features
