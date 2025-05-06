@@ -2,18 +2,17 @@
 import random
 
 from .constants import (
-    USER_AGENTS,
     FREQ_DAILY,
     MAPPING_INCOME_METRICS,
     MAPPING_BALANCE_METRICS,
+    BROWSERS,
 )
-from yfdata import utils, urls
+from yfdata import urls
 from . import parsing
 
 import pandas as pd
 from pandas import DataFrame
-
-import requests
+from curl_cffi import requests
 
 
 class YahooProvider:
@@ -94,16 +93,13 @@ class YahooProvider:
         if isinstance(tickers, str):
             tickers = [tickers]
 
-        # Prepare HTTP request.
-        headers = self._prepare_headers()
-
         dfs = []
         for ticker in tickers:
 
             url = urls.build_url_prices(ticker, freq)
 
             # Execute request and parse results.
-            r = requests.get(url, headers=headers, timeout=10)
+            r = requests.get(url, impersonate=random.choice(BROWSERS))
 
             # Parse results.
             df = parsing.parse_prices_or_rates(r.json(), ticker)
@@ -130,13 +126,10 @@ class YahooProvider:
 
         pair = f"{quote}/{base}"
 
-        # Prepare HTTP request.
-        headers = self._prepare_headers()
-
         url = urls.build_url_rates(base, quote, freq)
 
         # Execute request and parse results.
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, impersonate=random.choice(BROWSERS))
         df = parsing.parse_prices_or_rates(r.json(), pair)
 
         return df
@@ -169,15 +162,12 @@ class YahooProvider:
 
         dfs = []
 
-        # Prepare HTTP request.
-        headers = self._prepare_headers()
-
         for ticker in tickers:
 
             url = urls.build_url_financials(ticker, freq, mapping)
 
             # Execute request and parse results.
-            r = requests.get(url, headers=headers, timeout=10)
+            r = requests.get(url, impersonate=random.choice(BROWSERS))
             df = parsing.parse_financials(r.json(), ticker, freq, inv_mapping)
 
             dfs.append(df)
@@ -213,15 +203,12 @@ class YahooProvider:
 
         dfs = []
 
-        # Prepare HTTP request.
-        headers = self._prepare_headers()
-
         for ticker in tickers:
 
             url = urls.build_url_financials(ticker, freq, mapping)
 
             # Execute request and parse results.
-            r = requests.get(url, headers=headers, timeout=10)
+            r = requests.get(url, impersonate=random.choice(BROWSERS))
             df = parsing.parse_financials(r.json(), ticker, freq, inv_mapping)
 
             dfs.append(df)
@@ -244,9 +231,6 @@ class YahooProvider:
         if isinstance(tickers, str):
             tickers = [tickers]
 
-        # Prepare HTTP request.
-        headers = self._prepare_headers()
-
         dfs = []
 
         for ticker in tickers:
@@ -254,7 +238,7 @@ class YahooProvider:
             url = urls.build_url_dividends(ticker)
 
             # Execute request and parse results.
-            r = requests.get(url, headers=headers, timeout=10)
+            r = requests.get(url, impersonate=random.choice(BROWSERS))
 
             df = parsing.parse_dividends(r.json(), ticker)
 
@@ -264,15 +248,3 @@ class YahooProvider:
         df = pd.concat(dfs, ignore_index=True)
 
         return df
-
-    def _prepare_headers(self) -> dict:
-        """Prepares the HTTP header for API request.
-
-        Returns:
-            Dict with headers for HTTP request.
-
-        """
-
-        headers = {"User-Agent": random.choice(USER_AGENTS)}
-
-        return headers
