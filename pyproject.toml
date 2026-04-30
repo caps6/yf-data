@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yfdata"
-version = "0.1.7"
+version = "0.1.8"
 description = "Client for Yahoo Finance data"
 authors = ["andrea <vegavis@icloud.com>"]
 license = "MIT"
