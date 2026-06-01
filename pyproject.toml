@@ -1,19 +1,19 @@
 [tool.poetry]
 name = "yfdata"
-version = "0.1.8"
+version = "0.1.10"
 description = "Client for Yahoo Finance data"
 authors = ["andrea <vegavis@icloud.com>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-pandas = "^2.2.2"
-curl-cffi = "^0.10.0"
+python = ">=3.11,<4.0"
+pandas = ">=3.0.3,<4.0.0"
+curl-cffi = ">=0.15.0,<1.0.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
-bumpversion = "^0.6.0"
+black = ">=26.5.1,<27.0.0"
+bump-my-version = ">=1.2.7,<2.0.0"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
@@ -21,3 +21,12 @@ poetry-plugin-export = ">=1.8"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.bumpversion]
+current_version = "0.1.10"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
