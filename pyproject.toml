@@ -18,6 +18,8 @@ dev = [
     "bump-my-version>=1.0",
     "ruff>=0.15",
     "gitchangelog>=3.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
 
 docs = [
@@ -30,7 +32,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -39,6 +41,25 @@ ignore = ["F401"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--cov=yfdata",
+    "--cov-report=term-missing",
+]
+markers = [
+    "integration: tests that call the Yahoo Finance API",
+]
+
+[tool.coverage.run]
+source = ["yfdata"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
 
 [tool.bumpversion]
 current_version = "0.1.10"
