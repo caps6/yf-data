@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-"""Module with helpers for parsing API content returned by Yahoo API endpoints.
-"""
-from yfdata import utils
+"""Module with helpers for parsing API content returned by Yahoo API endpoints."""
 
 import pandas as pd
 from pandas import DataFrame
+
+from yfdata import utils
 
 
 def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
@@ -24,7 +23,6 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
     result = body["chart"]["result"]
 
     if isinstance(result, list) and len(result) > 0:
-
         data = body["chart"]["result"][0]
 
         metadata = data["meta"]
@@ -39,7 +37,6 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
             raise ValueError("Instrument type not supported.")
 
         if isinstance(data, dict) and "timestamp" in data and "indicators" in data:
-
             ts = data["timestamp"]
             quotes = data["indicators"]["quote"][0]
 
@@ -96,16 +93,13 @@ def parse_financials(body: dict, ticker: str, freq: str, mapping: dict) -> DataF
     res = body["timeseries"]["result"]
 
     for r in res:
-
         yahoo_metric_name = r["meta"]["type"][0]
 
         dates = []
         values = []
 
         if yahoo_metric_name in r:
-
             for item in r[yahoo_metric_name]:
-
                 if item is not None:
                     dates.append(item["asOfDate"])
                     values.append(float(item["reportedValue"]["raw"]))
@@ -147,17 +141,13 @@ def parse_dividends(body: dict, ticker: str) -> DataFrame:
     result = body["chart"]["result"]
 
     if isinstance(result, list) and len(result) > 0:
-
         data = result[0]
 
         if isinstance(data, dict) and "events" in data:
-
             dict_dividends = data["events"]["dividends"]
 
             for uts in dict_dividends:
-
                 if "amount" in dict_dividends[uts]:
-
                     ts = utils.timestamp2datetime(int(uts))
                     dates.append(ts)
                     dividends.append(dict_dividends[uts]["amount"])

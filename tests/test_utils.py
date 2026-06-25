@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
 import unittest
+from datetime import datetime, timedelta
 
-from datetime import datetime, timedelta, timezone
 from yfdata import constants, utils
 
 
 class TestUtils(unittest.TestCase):
-
     def setUp(self):
 
         self.ts = 1721826284

@@ -1,20 +1,18 @@
-# -*- coding: utf-8 -*-
 import unittest
 
 from yfdata import urls
 from yfdata.constants import (
-    FREQ_MINUTE,
-    FREQ_DAILY,
-    FREQ_QUARTERLY,
     FREQ_ANNUAL,
-    TTM,
-    MAPPING_INCOME_METRICS,
+    FREQ_DAILY,
+    FREQ_MINUTE,
+    FREQ_QUARTERLY,
     MAPPING_BALANCE_METRICS,
+    MAPPING_INCOME_METRICS,
+    TTM,
 )
 
 
 class TestUrls(unittest.TestCase):
-
     def test_url_prices(self) -> None:
         """Tests urls for prices."""
 

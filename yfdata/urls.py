@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
-"""Module with helpers for building URLs of Yahoo Finance API endpoints.
-"""
+"""Module with helpers for building URLs of Yahoo Finance API endpoints."""
+
+from yfdata import utils
 
 from .constants import (
-    T1W,
-    T1M,
-    T5Y,
+    FREQ_ANNUAL,
     FREQ_DAILY,
     FREQ_MINUTE,
     FREQ_QUARTERLY,
-    FREQ_ANNUAL,
+    T1M,
+    T1W,
+    T5Y,
     TTM,
 )
-from yfdata import utils
 
 # Base URLs.
 URL_BASE_CHART = "https://query1.finance.yahoo.com/v8/finance/chart"

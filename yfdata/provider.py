@@ -1,18 +1,18 @@
-# -*- coding: utf-8 -*-
 import random
 
-from .constants import (
-    FREQ_DAILY,
-    MAPPING_INCOME_METRICS,
-    MAPPING_BALANCE_METRICS,
-    BROWSERS,
-)
-from yfdata import urls
-from . import parsing
-
 import pandas as pd
-from pandas import DataFrame
 from curl_cffi import requests
+from pandas import DataFrame
+
+from yfdata import urls
+
+from . import parsing
+from .constants import (
+    BROWSERS,
+    FREQ_DAILY,
+    MAPPING_BALANCE_METRICS,
+    MAPPING_INCOME_METRICS,
+)
 
 
 class YahooProvider:
@@ -95,7 +95,6 @@ class YahooProvider:
 
         dfs = []
         for ticker in tickers:
-
             url = urls.build_url_prices(ticker, freq)
 
             # Execute request and parse results.
@@ -163,7 +162,6 @@ class YahooProvider:
         dfs = []
 
         for ticker in tickers:
-
             url = urls.build_url_financials(ticker, freq, mapping)
 
             # Execute request and parse results.
@@ -204,7 +202,6 @@ class YahooProvider:
         dfs = []
 
         for ticker in tickers:
-
             url = urls.build_url_financials(ticker, freq, mapping)
 
             # Execute request and parse results.
@@ -234,7 +231,6 @@ class YahooProvider:
         dfs = []
 
         for ticker in tickers:
-
             url = urls.build_url_dividends(ticker)
 
             # Execute request and parse results.

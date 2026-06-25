@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 import unittest
-
-from yfdata import constants, urls, YahooProvider
 
 from pandas import DataFrame
 
+from yfdata import YahooProvider, constants
+
 
 class TestData(unittest.TestCase):
-
     def setUp(self):
 
         self.yp = YahooProvider()

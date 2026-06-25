@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """Module for utility functions."""
-from datetime import datetime, timezone, timedelta
 
-from .constants import CURRENCY_EUR, T1W, T1M, T5Y
+from datetime import datetime, timedelta, timezone
+
+from .constants import T1M, T1W, T5Y
 
 
 def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
