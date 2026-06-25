@@ -1,18 +1,20 @@
-# -*- coding: utf-8 -*-
 import random
-
-from .constants import (
-    FREQ_DAILY,
-    MAPPING_INCOME_METRICS,
-    MAPPING_BALANCE_METRICS,
-    BROWSERS,
-)
-from yfdata import urls
-from . import parsing
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import pandas as pd
-from pandas import DataFrame
 from curl_cffi import requests
+from pandas import DataFrame
+
+from yfdata import urls
+
+from . import parsing
+from .constants import (
+    BROWSERS,
+    FREQ_DAILY,
+    MAPPING_BALANCE_METRICS,
+    MAPPING_INCOME_METRICS,
+)
 
 
 class YahooProvider:
@@ -78,7 +80,64 @@ class YahooProvider:
 
     """
 
-    def get_prices(self, tickers: list, freq: str = FREQ_DAILY) -> DataFrame:
+    def __init__(
+        self,
+        http_get: Callable[..., Any] = requests.get,
+        browsers: Sequence[str] = BROWSERS,
+    ) -> None:
+        self._http_get = http_get
+        self._browsers = tuple(browsers)
+
+    def _request_json(self, url: str) -> dict:
+        response = self._http_get(url, impersonate=random.choice(self._browsers))
+        return response.json()
+
+    @staticmethod
+    def _normalize_tickers(tickers: str | Sequence[str]) -> list[str]:
+        if isinstance(tickers, str):
+            return [tickers]
+
+        tickers = list(tickers)
+        if not tickers:
+            raise ValueError("At least one ticker must be provided.")
+
+        return tickers
+
+    @staticmethod
+    def _concat_frames(frames: list[DataFrame]) -> DataFrame:
+        if not frames:
+            raise ValueError("At least one dataframe must be provided.")
+
+        return pd.concat(frames, ignore_index=True)
+
+    @staticmethod
+    def _build_financial_mapping(
+        available_metrics: dict,
+        freq: str,
+        metrics: Sequence[str] | None,
+    ) -> tuple[dict, dict]:
+        if metrics is None:
+            metrics = list(available_metrics.keys())
+
+        unknown_metrics = set(metrics) - set(available_metrics)
+        if unknown_metrics:
+            formatted_metrics = ", ".join(sorted(unknown_metrics))
+            raise ValueError(f"Unknown financial metrics: {formatted_metrics}")
+
+        mapping = {}
+        for metric in metrics:
+            if freq not in available_metrics[metric]:
+                raise ValueError(f"Frequency {freq!r} is not supported for {metric!r}.")
+            mapping[metric] = available_metrics[metric][freq]
+
+        inv_mapping = {v: k for k, v in mapping.items()}
+        return mapping, inv_mapping
+
+    def get_prices(
+        self,
+        tickers: str | Sequence[str],
+        freq: str = FREQ_DAILY,
+    ) -> DataFrame:
         """Gets OHLC price data for multiple tickers.
 
         Args:
@@ -90,26 +149,14 @@ class YahooProvider:
 
         """
 
-        if isinstance(tickers, str):
-            tickers = [tickers]
-
         dfs = []
-        for ticker in tickers:
-
+        for ticker in self._normalize_tickers(tickers):
             url = urls.build_url_prices(ticker, freq)
-
-            # Execute request and parse results.
-            r = requests.get(url, impersonate=random.choice(BROWSERS))
-
-            # Parse results.
-            df = parsing.parse_prices_or_rates(r.json(), ticker)
-
-            # Append dataframe.
+            body = self._request_json(url)
+            df = parsing.parse_prices_or_rates(body, ticker)
             dfs.append(df)
 
-        df = pd.concat(dfs, ignore_index=True)
-
-        return df
+        return self._concat_frames(dfs)
 
     def get_rates(self, base: str, quote: str, freq: str = FREQ_DAILY) -> DataFrame:
         """Gets OHLC exchange rates for multiple tickers.
@@ -125,16 +172,16 @@ class YahooProvider:
         """
 
         pair = f"{quote}/{base}"
-
         url = urls.build_url_rates(base, quote, freq)
+        body = self._request_json(url)
+        return parsing.parse_prices_or_rates(body, pair)
 
-        # Execute request and parse results.
-        r = requests.get(url, impersonate=random.choice(BROWSERS))
-        df = parsing.parse_prices_or_rates(r.json(), pair)
-
-        return df
-
-    def get_income(self, tickers: list, freq: str, metrics: list = None) -> DataFrame:
+    def get_income(
+        self,
+        tickers: str | Sequence[str],
+        freq: str,
+        metrics: Sequence[str] | None = None,
+    ) -> DataFrame:
         """Gets income data for a list of companies.
 
         Args:
@@ -148,36 +195,15 @@ class YahooProvider:
 
         """
 
-        if isinstance(tickers, str):
-            tickers = [tickers]
+        return self._get_financials(tickers, freq, MAPPING_INCOME_METRICS, metrics)
 
-        if metrics is None:
-            metrics = list(MAPPING_INCOME_METRICS.keys())
-
-        # Mapping filtered by metrics to retrieve and its inverse mapping.
-        mapping = {
-            k: v[freq] for k, v in MAPPING_INCOME_METRICS.items() if k in metrics
-        }
-        inv_mapping = {v: k for k, v in mapping.items()}
-
-        dfs = []
-
-        for ticker in tickers:
-
-            url = urls.build_url_financials(ticker, freq, mapping)
-
-            # Execute request and parse results.
-            r = requests.get(url, impersonate=random.choice(BROWSERS))
-            df = parsing.parse_financials(r.json(), ticker, freq, inv_mapping)
-
-            dfs.append(df)
-
-        df_full = pd.concat(dfs, ignore_index=True)
-
-        return df_full
-
-    def get_balance(self, tickers: list, freq: str, metrics: list = None) -> DataFrame:
-        """Gets income data for a list of companies.
+    def get_balance(
+        self,
+        tickers: str | Sequence[str],
+        freq: str,
+        metrics: Sequence[str] | None = None,
+    ) -> DataFrame:
+        """Gets balance data for a list of companies.
 
         Args:
             tickers: List of company tickers.
@@ -189,35 +215,31 @@ class YahooProvider:
 
         """
 
-        if isinstance(tickers, str):
-            tickers = [tickers]
+        return self._get_financials(tickers, freq, MAPPING_BALANCE_METRICS, metrics)
 
-        if metrics is None:
-            metrics = list(MAPPING_BALANCE_METRICS.keys())
-
-        # Mapping filtered by metrics to retrieve and its inverse mapping.
-        mapping = {
-            k: v[freq] for k, v in MAPPING_BALANCE_METRICS.items() if k in metrics
-        }
-        inv_mapping = {v: k for k, v in mapping.items()}
-
+    def _get_financials(
+        self,
+        tickers: str | Sequence[str],
+        freq: str,
+        available_metrics: dict,
+        metrics: Sequence[str] | None,
+    ) -> DataFrame:
+        mapping, inv_mapping = self._build_financial_mapping(
+            available_metrics,
+            freq,
+            metrics,
+        )
         dfs = []
 
-        for ticker in tickers:
-
+        for ticker in self._normalize_tickers(tickers):
             url = urls.build_url_financials(ticker, freq, mapping)
-
-            # Execute request and parse results.
-            r = requests.get(url, impersonate=random.choice(BROWSERS))
-            df = parsing.parse_financials(r.json(), ticker, freq, inv_mapping)
-
+            body = self._request_json(url)
+            df = parsing.parse_financials(body, ticker, freq, inv_mapping)
             dfs.append(df)
 
-        df_full = pd.concat(dfs, ignore_index=True)
+        return self._concat_frames(dfs)
 
-        return df_full
-
-    def get_dividends(self, tickers: list) -> DataFrame:
+    def get_dividends(self, tickers: str | Sequence[str]) -> DataFrame:
         """Gets dividend data of a company.
 
         Args:
@@ -228,23 +250,12 @@ class YahooProvider:
 
         """
 
-        if isinstance(tickers, str):
-            tickers = [tickers]
-
         dfs = []
 
-        for ticker in tickers:
-
+        for ticker in self._normalize_tickers(tickers):
             url = urls.build_url_dividends(ticker)
-
-            # Execute request and parse results.
-            r = requests.get(url, impersonate=random.choice(BROWSERS))
-
-            df = parsing.parse_dividends(r.json(), ticker)
-
-            # Append dataframe.
+            body = self._request_json(url)
+            df = parsing.parse_dividends(body, ticker)
             dfs.append(df)
 
-        df = pd.concat(dfs, ignore_index=True)
-
-        return df
+        return self._concat_frames(dfs)

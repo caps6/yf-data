@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """Module for utility functions."""
-from datetime import datetime, timezone, timedelta
 
-from .constants import CURRENCY_EUR, T1W, T1M, T5Y
+from datetime import UTC, datetime, timedelta
+
+from .constants import T1M, T1W, T5Y
 
 
 def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
@@ -16,7 +16,7 @@ def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
     """
 
     if date_ref is None:
-        date_ref = datetime.now(timezone.utc).replace(tzinfo=None)
+        date_ref = datetime.now(UTC).replace(tzinfo=None)
 
     if timeframe is not None:
         if timeframe == T1W:

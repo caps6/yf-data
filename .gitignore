@@ -12,6 +12,9 @@ __pycache__/
 Thumbs.db
 
 # Python artefacts
+.coverage
+htmlcov/
+coverage.xml
 *.egg-info
 dist/
 build/

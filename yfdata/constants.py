@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # CONSTANTS.
 CURRENCY_EUR = "eur"
 T1W = "1W"
