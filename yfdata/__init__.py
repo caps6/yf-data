@@ -1,1 +1,1 @@
-from .provider import YahooProvider
+from .provider import YahooProvider as YahooProvider
