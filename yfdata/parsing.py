@@ -10,10 +10,21 @@ _FINANCIAL_COLUMNS = ["ticker", "metric", "freq", "date", "value"]
 _DIVIDEND_COLUMNS = ["ticker", "ts", "dividend"]
 
 
+def _price_code_name(ticker_or_pair: str, instrument_type: object = None) -> str:
+    if instrument_type in ("EQUITY", "ETF"):
+        return "ticker"
+    if instrument_type == "CURRENCY":
+        return "pair"
+    if instrument_type is not None:
+        raise ValueError(f"Instrument type {instrument_type!r} is not supported.")
+
+    return "pair" if "/" in ticker_or_pair else "ticker"
+
+
 def _empty_prices_frame(code_name: str, ticker_or_pair: str) -> DataFrame:
     df = DataFrame(columns=[*_PRICE_COLUMNS, code_name])
     df[code_name] = df[code_name].astype("object")
-    df["ts"] = pd.to_datetime(df["ts"], unit="s")
+    df["ts"] = pd.to_datetime(df["ts"], unit="s", utc=True)
     df[code_name] = ticker_or_pair.lower()
     return df[[code_name, *_PRICE_COLUMNS]]
 
@@ -30,43 +41,57 @@ def parse_prices_or_rates(body: dict, ticker_or_pair: str) -> DataFrame:
 
     """
 
-    result = body.get("chart", {}).get("result")
+    chart = body.get("chart", {})
+    result = chart.get("result") if isinstance(chart, dict) else None
 
     if not isinstance(result, list) or not result:
-        return _empty_prices_frame("instrument", ticker_or_pair)
+        return _empty_prices_frame(_price_code_name(ticker_or_pair), ticker_or_pair)
 
     data = result[0]
+    if not isinstance(data, dict):
+        return _empty_prices_frame(_price_code_name(ticker_or_pair), ticker_or_pair)
+
     metadata = data.get("meta", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
     instrument_type = metadata.get("instrumentType")
+    code_name = _price_code_name(ticker_or_pair, instrument_type)
 
-    if instrument_type in ("EQUITY", "ETF"):
-        code_name = "ticker"
-    elif instrument_type == "CURRENCY":
-        code_name = "pair"
-    else:
-        raise ValueError("Instrument type not supported.")
+    timestamps = data.get("timestamp")
+    indicators = data.get("indicators")
+    if not isinstance(timestamps, list) or not isinstance(indicators, dict):
+        return _empty_prices_frame(code_name, ticker_or_pair)
 
+    quote_items = indicators.get("quote")
     if (
-        not isinstance(data, dict)
-        or "timestamp" not in data
-        or "indicators" not in data
+        not isinstance(quote_items, list)
+        or not quote_items
+        or not isinstance(quote_items[0], dict)
     ):
         return _empty_prices_frame(code_name, ticker_or_pair)
 
-    quotes = data["indicators"].get("quote", [{}])[0]
+    quotes = quote_items[0]
+    row_count = len(timestamps)
+
+    def values_for(name: str) -> list:
+        values = quotes.get(name)
+        if not isinstance(values, list):
+            return [None] * row_count
+        return (values + [None] * row_count)[:row_count]
+
     df = DataFrame(
         data={
-            "ts": data["timestamp"],
-            "o": quotes.get("open", []),
-            "h": quotes.get("high", []),
-            "l": quotes.get("low", []),
-            "c": quotes.get("close", []),
-            "v": quotes.get("volume", []),
+            "ts": timestamps,
+            "o": values_for("open"),
+            "h": values_for("high"),
+            "l": values_for("low"),
+            "c": values_for("close"),
+            "v": values_for("volume"),
         }
     )
 
     df[code_name] = ticker_or_pair.lower()
-    df["ts"] = pd.to_datetime(df["ts"], unit="s")
+    df["ts"] = pd.to_datetime(df["ts"], unit="s", errors="coerce", utc=True)
 
     # Reorder the columns.
     return df[[code_name, *_PRICE_COLUMNS]]
@@ -87,20 +112,50 @@ def parse_financials(body: dict, ticker: str, freq: str, mapping: dict) -> DataF
     """
 
     rows = []
-    results = body.get("timeseries", {}).get("result", [])
+    timeseries = body.get("timeseries", {})
+    results = timeseries.get("result", []) if isinstance(timeseries, dict) else []
+    if not isinstance(results, list):
+        results = []
 
     for result in results:
-        yahoo_metric_names = result.get("meta", {}).get("type", [])
-        if not yahoo_metric_names:
+        if not isinstance(result, dict):
+            continue
+
+        metadata = result.get("meta", {})
+        if not isinstance(metadata, dict):
+            continue
+
+        yahoo_metric_names = metadata.get("type", [])
+        if not isinstance(yahoo_metric_names, list) or not yahoo_metric_names:
             continue
 
         yahoo_metric_name = yahoo_metric_names[0]
+        if not isinstance(yahoo_metric_name, str):
+            continue
+
         metric = mapping.get(yahoo_metric_name)
         if metric is None:
             continue
 
-        for item in result.get(yahoo_metric_name, []):
-            if item is None:
+        items = result.get(yahoo_metric_name, [])
+        if not isinstance(items, list):
+            continue
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            reported_value = item.get("reportedValue")
+            if (
+                "asOfDate" not in item
+                or not isinstance(reported_value, dict)
+                or "raw" not in reported_value
+            ):
+                continue
+
+            try:
+                value = float(reported_value["raw"])
+            except (TypeError, ValueError):
                 continue
 
             rows.append(
@@ -109,7 +164,7 @@ def parse_financials(body: dict, ticker: str, freq: str, mapping: dict) -> DataF
                     "metric": metric,
                     "freq": freq,
                     "date": item["asOfDate"],
-                    "value": float(item["reportedValue"]["raw"]),
+                    "value": value,
                 }
             )
 
@@ -129,23 +184,33 @@ def parse_dividends(body: dict, ticker: str) -> DataFrame:
     """
 
     rows = []
-    result = body.get("chart", {}).get("result")
+    chart = body.get("chart", {})
+    result = chart.get("result") if isinstance(chart, dict) else None
 
-    if isinstance(result, list) and result:
+    if isinstance(result, list) and result and isinstance(result[0], dict):
         data = result[0]
-        dict_dividends = data.get("events", {}).get("dividends", {})
+        events = data.get("events", {})
+        dict_dividends = events.get("dividends", {}) if isinstance(events, dict) else {}
 
-        for uts, dividend in dict_dividends.items():
-            if "amount" in dividend:
+        if isinstance(dict_dividends, dict):
+            for uts, dividend in dict_dividends.items():
+                if not isinstance(dividend, dict) or "amount" not in dividend:
+                    continue
+
+                try:
+                    timestamp = utils.timestamp2datetime(int(uts))
+                except (TypeError, ValueError, OverflowError, OSError):
+                    continue
+
                 rows.append(
                     {
                         "ticker": ticker.lower(),
-                        "ts": utils.timestamp2datetime(int(uts)),
+                        "ts": timestamp,
                         "dividend": dividend["amount"],
                     }
                 )
 
     df = DataFrame(rows, columns=_DIVIDEND_COLUMNS)
-    df["ts"] = pd.to_datetime(df["ts"], unit="s").dt.date
+    df["ts"] = pd.to_datetime(df["ts"], utc=True).dt.date
 
     return df

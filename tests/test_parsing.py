@@ -1,4 +1,7 @@
-from datetime import date
+from datetime import UTC, date
+
+import pandas as pd
+import pytest
 
 from yfdata import parsing
 
@@ -31,13 +34,75 @@ def test_parse_prices_or_rates_equity() -> None:
     assert list(df.columns) == ["ticker", "ts", "o", "h", "l", "c", "v"]
     assert df.loc[0, "ticker"] == "aapl"
     assert df.loc[0, "c"] == 1.5
+    assert df.loc[0, "ts"].tzinfo is UTC
 
 
 def test_parse_prices_or_rates_empty_result() -> None:
     df = parsing.parse_prices_or_rates({"chart": {"result": []}}, "AAPL")
 
-    assert list(df.columns) == ["instrument", "ts", "o", "h", "l", "c", "v"]
+    assert list(df.columns) == ["ticker", "ts", "o", "h", "l", "c", "v"]
     assert df.empty
+
+
+def test_parse_rates_empty_result_keeps_pair_schema() -> None:
+    df = parsing.parse_prices_or_rates({"chart": {"result": []}}, "eur/usd")
+
+    assert list(df.columns) == ["pair", "ts", "o", "h", "l", "c", "v"]
+    assert df.empty
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"chart": None},
+        {"chart": {"result": [None]}},
+        {"chart": {"result": [{"meta": {"instrumentType": "EQUITY"}}]}},
+        {
+            "chart": {
+                "result": [
+                    {
+                        "meta": {"instrumentType": "EQUITY"},
+                        "timestamp": [1721826284],
+                        "indicators": {"quote": []},
+                    }
+                ]
+            }
+        },
+    ],
+)
+def test_parse_prices_or_rates_handles_incomplete_responses(body) -> None:
+    df = parsing.parse_prices_or_rates(body, "AAPL")
+
+    assert list(df.columns) == ["ticker", "ts", "o", "h", "l", "c", "v"]
+    assert df.empty
+
+
+def test_parse_prices_or_rates_fills_missing_quote_values() -> None:
+    body = {
+        "chart": {
+            "result": [
+                {
+                    "meta": {"instrumentType": "EQUITY"},
+                    "timestamp": [1721826284, 1721826344],
+                    "indicators": {"quote": [{"close": [1.5]}]},
+                }
+            ]
+        }
+    }
+
+    df = parsing.parse_prices_or_rates(body, "AAPL")
+
+    assert len(df) == 2
+    assert df.loc[0, "c"] == 1.5
+    assert pd.isna(df.loc[1, "c"])
+    assert df[["o", "h", "l", "v"]].isna().all().all()
+
+
+def test_parse_prices_or_rates_rejects_unknown_instrument() -> None:
+    body = {"chart": {"result": [{"meta": {"instrumentType": "CRYPTOCURRENCY"}}]}}
+
+    with pytest.raises(ValueError, match="CRYPTOCURRENCY"):
+        parsing.parse_prices_or_rates(body, "BTC-USD")
 
 
 def test_parse_financials() -> None:
@@ -77,6 +142,37 @@ def test_parse_financials_empty_result() -> None:
     assert df.empty
 
 
+def test_parse_financials_skips_malformed_items() -> None:
+    body = {
+        "timeseries": {
+            "result": [
+                None,
+                {"meta": None},
+                {
+                    "meta": {"type": ["annualTotalRevenue"]},
+                    "annualTotalRevenue": [
+                        None,
+                        {"asOfDate": "2024-09-30"},
+                        {
+                            "asOfDate": "2024-09-30",
+                            "reportedValue": {"raw": "invalid"},
+                        },
+                    ],
+                },
+            ]
+        }
+    }
+
+    df = parsing.parse_financials(
+        body,
+        "AAPL",
+        "A",
+        {"annualTotalRevenue": "total_revenue"},
+    )
+
+    assert df.empty
+
+
 def test_parse_dividends() -> None:
     body = {
         "chart": {
@@ -101,7 +197,30 @@ def test_parse_dividends() -> None:
 
 
 def test_parse_dividends_without_events() -> None:
-    df = parsing.parse_dividends({"chart": {"result": [{}]}}, "AAPL")
+    without_events = parsing.parse_dividends({"chart": {"result": [{}]}}, "AAPL")
+    invalid_chart = parsing.parse_dividends({"chart": None}, "AAPL")
 
-    assert list(df.columns) == ["ticker", "ts", "dividend"]
+    assert list(without_events.columns) == ["ticker", "ts", "dividend"]
+    assert without_events.empty
+    assert invalid_chart.empty
+
+
+def test_parse_dividends_skips_malformed_items() -> None:
+    body = {
+        "chart": {
+            "result": [
+                {
+                    "events": {
+                        "dividends": {
+                            "invalid": {"amount": 0.25},
+                            "1721826284": None,
+                        }
+                    }
+                }
+            ]
+        }
+    }
+
+    df = parsing.parse_dividends(body, "AAPL")
+
     assert df.empty
