@@ -84,13 +84,30 @@ class YahooProvider:
         self,
         http_get: Callable[..., Any] = requests.get,
         browsers: Sequence[str] = BROWSERS,
+        timeout: float = 30.0,
     ) -> None:
+        if not browsers:
+            raise ValueError("At least one browser must be provided.")
+        if timeout <= 0:
+            raise ValueError("Timeout must be greater than zero.")
+
         self._http_get = http_get
         self._browsers = tuple(browsers)
+        self._timeout = timeout
 
     def _request_json(self, url: str) -> dict:
-        response = self._http_get(url, impersonate=random.choice(self._browsers))
-        return response.json()
+        response = self._http_get(
+            url,
+            impersonate=random.choice(self._browsers),
+            timeout=self._timeout,
+        )
+        response.raise_for_status()
+        body = response.json()
+
+        if not isinstance(body, dict):
+            raise ValueError("Yahoo Finance returned a non-object JSON response.")
+
+        return body
 
     @staticmethod
     def _normalize_tickers(tickers: str | Sequence[str]) -> list[str]:
