@@ -3,7 +3,7 @@ name = "yfdata"
 version = "0.2.1"
 description = "Client for Yahoo Finance data"
 authors = [
-    { name = "andrea", email = "vegavis@icloud.com"}
+    { name = "Andrea C.", email = "andrea.cap.dev@icloud.com"}
 ]
 license = "MIT"
 readme = "README.md"
