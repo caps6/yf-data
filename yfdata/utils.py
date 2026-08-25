@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from .constants import T1M, T1W, T5Y
 
 
-def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
+def eval_past_dt(timeframe: str, date_ref: datetime | None = None) -> datetime:
     """Computes a datetime in the past according to a given timeframe or to
     given number of minutes. All datetimes are in UTC zone.
 
@@ -16,7 +16,11 @@ def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
     """
 
     if date_ref is None:
-        date_ref = datetime.now(UTC).replace(tzinfo=None)
+        date_ref = datetime.now(UTC)
+    elif date_ref.tzinfo is None:
+        date_ref = date_ref.replace(tzinfo=UTC)
+    else:
+        date_ref = date_ref.astimezone(UTC)
 
     if timeframe is not None:
         if timeframe == T1W:
@@ -34,18 +38,20 @@ def eval_past_dt(timeframe: str, date_ref: datetime = None) -> datetime:
     return dt
 
 
-def datetime2timestamp(date_ref: datetime = None) -> int:
+def datetime2timestamp(date_ref: datetime | None = None) -> int:
+    """Convert a datetime to a Unix timestamp, interpreting naive values as UTC."""
 
     if date_ref is None:
-        date_ref = datetime.now()
+        date_ref = datetime.now(UTC)
+    elif date_ref.tzinfo is None:
+        date_ref = date_ref.replace(tzinfo=UTC)
+    else:
+        date_ref = date_ref.astimezone(UTC)
 
-    unix_timestamp = int(datetime.timestamp(date_ref.replace(tzinfo=None)))
-
-    return unix_timestamp
+    return int(date_ref.timestamp())
 
 
 def timestamp2datetime(timestamp: int) -> datetime:
+    """Convert a Unix timestamp to a timezone-aware UTC datetime."""
 
-    dt = datetime.fromtimestamp(timestamp).replace(tzinfo=None)
-
-    return dt
+    return datetime.fromtimestamp(timestamp, tz=UTC)
