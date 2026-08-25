@@ -1,7 +1,7 @@
 name: Python Application
 run-name: ${{ github.actor }} is building ${{ github.repository }}
 
-on: [push]
+on: [push, pull_request]
 
 permissions:
   contents: read
@@ -32,5 +32,16 @@ jobs:
       - name: Build package
         run: uv build --out-dir build-dist
 
-      - name: Run tests with coverage
-        run: uv run --frozen pytest
+      - name: Run Ruff lint
+        run: uv run --frozen ruff check .
+
+      - name: Check Ruff formatting
+        run: uv run --frozen ruff format --check .
+
+      - name: Run unit tests with coverage
+        run: uv run --frozen pytest -m "not integration"
+
+      - name: Run Yahoo Finance integration tests
+        env:
+          YFDATA_RUN_INTEGRATION: "1"
+        run: uv run --frozen pytest -m integration
