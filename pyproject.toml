@@ -68,3 +68,14 @@ tag_name = "v{new_version}"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+search = '''
+name = "yfdata"
+version = "{current_version}"
+'''
+replace = '''
+name = "yfdata"
+version = "{new_version}"
+'''
