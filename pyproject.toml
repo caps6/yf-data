@@ -1,6 +1,6 @@
 [project]
 name = "yfdata"
-version = "0.2.3"
+version = "0.2.4"
 description = "Client for Yahoo Finance data"
 authors = [
     { name = "Andrea C.", email = "andrea.cap.dev@icloud.com"}
@@ -61,7 +61,7 @@ show_missing = true
 skip_covered = true
 
 [tool.bumpversion]
-current_version = "0.2.3"
+current_version = "0.2.4"
 commit = true
 tag = true
 tag_name = "v{new_version}"
