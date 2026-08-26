@@ -3,28 +3,40 @@
 ![application-build](https://github.com/caps6/yf-data/actions/workflows/python-build.yml/badge.svg)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/yfdata)
 
-A simple-but-working python module that returns data from Yahoo Finance.
+A small Python client that returns normalized Yahoo Finance data as Pandas
+DataFrames.
 
+## Features
 
-### Features
+Available data include:
 
-Data include:
 - OHLC values for stocks and exchange rates
 - dividends
-- financial data of companies (income and balance sheets).
+- company financial data from income and balance sheets
 
-All data are returned as [Pandas Dataframe](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html).
+All results are returned as [Pandas DataFrames](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html).
 
-### Usage
+Temporal values follow their domain semantics:
+
+| Data | Temporal value | Timezone rule |
+|------|----------------|---------------|
+| 1-minute stock prices | timezone-aware `pandas.Timestamp` | UTC |
+| Daily stock prices | `datetime.date` | Exchange civil date; UTC fallback |
+| Exchange rates (`1m` and `1D`) | timezone-aware `pandas.Timestamp` | UTC |
+| Income and balance-sheet periods | `datetime.date` | Date reported by Yahoo |
+| Dividends | `datetime.date` | Exchange civil date; UTC fallback |
+
+The public API does not return naive datetimes.
+
+## Usage
 
 ```python
-
 from yfdata import YahooProvider
 
 yp = YahooProvider()
 
 # Frequency for prices and exchange rates can be daily ("1D") or 1-minute ("1m").
- 
+
 # Get daily OHLC data.
 df = yp.get_prices(["aapl"], "1D")
 
@@ -34,11 +46,10 @@ df = yp.get_rates("usd", "eur", freq="1m")
 # Get company dividends.
 df = yp.get_dividends(["aapl", "msft"])
 
+# Income frequency can be annual ("A"), quarterly ("Q"), or
+# trailing twelve months ("TTM").
 
-# Frequency for income data can be annual ("A"), quarterly ("Q") or 
-# trailing twelwe months ("TTM").
-
-# Frequency for balance data can be annual ("A") or quarterly ("Q"). 
+# Balance-sheet frequency can be annual ("A") or quarterly ("Q").
 
 # Get annual income data.
 df = yp.get_income(["aapl", "msft"], freq="A")
@@ -49,20 +60,19 @@ df = yp.get_balance(["aapl", "msft"], freq="Q")
 # Define a list of specific metrics for income data.
 metrics = ["total_revenue", "ebitda"]
 df = yp.get_income(["aapl", "msft"], freq="A", metrics=metrics)
-
 ```
 
-### Output examples
+## Output examples
 
 An excerpt from 1-minute OHLC price data:
 
-| ticker | ts                  | o          | h          | l          | c          | v         |
-|--------|---------------------|------------|------------|------------|------------|-----------|
-| aapl   | 2024-07-26 13:30:00 | 218.850006 | 219.149902 | 218.089996 | 218.740005 | 1170434.0 |
-| aapl   | 2024-07-26 13:31:00 | 218.389999 | 218.470001 | 218.000000 | 218.020004 | 382342.0  |
-| aapl   | 2024-07-26 13:32:00 | 218.054993 | 218.740005 | 218.020004 | 218.481903 | 227239.0  |
-| aapl   | 2024-07-26 13:33:00 | 218.479996 | 218.539993 | 217.669998 | 217.669998 | 263403.0  |
-| aapl   | 2024-07-26 13:34:00 | 217.630005 | 217.630005 | 217.119995 | 217.160004 | 241679.0  |
+| ticker | ts                        | o          | h          | l          | c          | v         |
+|--------|---------------------------|------------|------------|------------|------------|-----------|
+| aapl   | 2024-07-26 13:30:00+00:00 | 218.850006 | 219.149902 | 218.089996 | 218.740005 | 1170434.0 |
+| aapl   | 2024-07-26 13:31:00+00:00 | 218.389999 | 218.470001 | 218.000000 | 218.020004 | 382342.0  |
+| aapl   | 2024-07-26 13:32:00+00:00 | 218.054993 | 218.740005 | 218.020004 | 218.481903 | 227239.0  |
+| aapl   | 2024-07-26 13:33:00+00:00 | 218.479996 | 218.539993 | 217.669998 | 217.669998 | 263403.0  |
+| aapl   | 2024-07-26 13:34:00+00:00 | 217.630005 | 217.630005 | 217.119995 | 217.160004 | 241679.0  |
 
 An excerpt from annual balance data:
 
@@ -77,9 +87,10 @@ An excerpt from annual balance data:
 | aapl   | ordinary_shares_number | A    | 2022-09-30 | 1.59434e+10 |
 | aapl   | ordinary_shares_number | A    | 2023-09-30 | 1.55501e+10 |
 
-### Financial metrics
+## Financial metrics
 
-Available metrics for income sheet are:
+Available metrics for the income statement are:
+
 - total_revenue
 - cost_of_revenue
 - gross_profit
@@ -96,6 +107,7 @@ Available metrics for income sheet are:
 - ebitda
 
 Available metrics for balance sheet are:
+
 - total_assets
 - total_liabilities_net_minority_interest
 - total_equity_gross_minority_interest

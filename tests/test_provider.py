@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from yfdata import YahooProvider, constants
@@ -73,6 +75,7 @@ def test_get_prices_accepts_single_ticker_and_injects_http_client() -> None:
     df = provider.get_prices("AAPL", constants.FREQ_DAILY)
 
     assert df.loc[0, "ticker"] == "aapl"
+    assert type(df.loc[0, "ts"]) is date
     assert "AAPL" in http_get.calls[0][0]
     assert http_get.calls[0][1] == {"impersonate": "chrome", "timeout": 30.0}
 
