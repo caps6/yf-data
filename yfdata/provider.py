@@ -18,12 +18,21 @@ from .constants import (
 
 
 class YahooProvider:
-    """Provides data from Yahoo Finance.
+    """Provide normalized market and company data from Yahoo Finance.
 
     Data include OHLC values for stocks and exchange rates, and dividends and
     financial (income and balance) data of companies.
 
-    Available metrics for income sheet are:
+    Minute prices and exchange rates use timezone-aware UTC timestamps. Daily
+    stock prices, financial reporting periods, and dividends use
+    :class:`datetime.date` values. No public method returns naive datetimes.
+
+    Args:
+        http_get: HTTP callable compatible with ``curl_cffi.requests.get``.
+        browsers: Browser profiles available for request impersonation.
+        timeout: HTTP timeout in seconds; it must be greater than zero.
+
+    Available metrics for the income statement are:
         - total_revenue
         - cost_of_revenue
         - gross_profit
@@ -56,7 +65,7 @@ class YahooProvider:
         - ordinary_shares_number
 
     Examples:
-        Create the provider e get some daily stock prices.
+        Create the provider and get some daily stock prices.
 
         >>> from yfdata import YahooProvider
         >>> yp = YahooProvider()
@@ -75,7 +84,7 @@ class YahooProvider:
         >>> df = yp.get_balance(["aapl", "msft"], freq="Q")
 
         Define specific income metrics to retrieve.
-        >>> metrics = ["revenue", "ebitda"]
+        >>> metrics = ["total_revenue", "ebitda"]
         >>> df = yp.get_income(["aapl", "msft"], freq="A", metrics=metrics)
 
     """
@@ -155,14 +164,18 @@ class YahooProvider:
         tickers: str | Sequence[str],
         freq: str = FREQ_DAILY,
     ) -> DataFrame:
-        """Gets OHLC price data for multiple tickers.
+        """Get OHLC price data for one or more tickers.
+
+        Daily observations use :class:`datetime.date` values in ``ts``. Minute
+        observations use timezone-aware UTC timestamps.
 
         Args:
-            tickers: List of company tickers.
+            tickers: A company ticker or a sequence of tickers.
             freq: Data sampling, can be ``1D`` (daily) or ``1m`` (1 minute).
 
         Returns:
-            A DataFrame with OHLC data for prices.
+            A DataFrame with columns ``ticker``, ``ts``, ``o``, ``h``, ``l``,
+            ``c`` and ``v``. The type of ``ts`` follows the requested frequency.
 
         """
 
@@ -170,28 +183,33 @@ class YahooProvider:
         for ticker in self._normalize_tickers(tickers):
             url = urls.build_url_prices(ticker, freq)
             body = self._request_json(url)
-            df = parsing.parse_prices_or_rates(body, ticker)
+            df = parsing.parse_prices_or_rates(body, ticker, freq)
             dfs.append(df)
 
         return self._concat_frames(dfs)
 
     def get_rates(self, base: str, quote: str, freq: str = FREQ_DAILY) -> DataFrame:
-        """Gets OHLC exchange rates for multiple tickers.
+        """Get OHLC exchange rates for a currency pair.
+
+        The ``ts`` column always contains timezone-aware UTC timestamps, for
+        both daily and minute observations.
 
         Args:
-            base: Currency base.
-            quote: Currency quote.
+            base: Base currency code, for example ``usd``.
+            quote: Quote currency code, for example ``eur``.
             freq: Data sampling, can be ``1D`` (daily) or ``1m`` (1 minute).
 
         Returns:
-            A DataFrame with OHLC data for exchange rates.
+            A DataFrame with columns ``pair``, ``ts``, ``o``, ``h``, ``l``,
+            ``c`` and ``v``. ``pair`` is formatted as ``quote/base`` and values
+            express units of the quote currency per unit of the base currency.
 
         """
 
         pair = f"{quote}/{base}"
         url = urls.build_url_rates(base, quote, freq)
         body = self._request_json(url)
-        return parsing.parse_prices_or_rates(body, pair)
+        return parsing.parse_prices_or_rates(body, pair, freq)
 
     def get_income(
         self,
@@ -199,16 +217,21 @@ class YahooProvider:
         freq: str,
         metrics: Sequence[str] | None = None,
     ) -> DataFrame:
-        """Gets income data for a list of companies.
+        """Get income data for one or more companies.
+
+        Reporting periods are represented by :class:`datetime.date` values in
+        the ``date`` column.
 
         Args:
-            tickers: List of company tickers.
+            tickers: A company ticker or a sequence of tickers.
             freq: Period of data, can be quarterly (Q), annual (A) or trailing
-                twelwe months (TTM).
-            metrics: List of specific metrics to retrieve. If None, it returns
-                all metrics available for income sheet.
+                twelve months (TTM).
+            metrics: Specific metrics to retrieve. All available income metrics
+                are returned when omitted.
+
         Returns:
-            DataFrame with financial data.
+            A DataFrame with columns ``ticker``, ``metric``, ``freq``, ``date``
+            and ``value``.
 
         """
 
@@ -220,15 +243,20 @@ class YahooProvider:
         freq: str,
         metrics: Sequence[str] | None = None,
     ) -> DataFrame:
-        """Gets balance data for a list of companies.
+        """Get balance-sheet data for one or more companies.
+
+        Reporting periods are represented by :class:`datetime.date` values in
+        the ``date`` column.
 
         Args:
-            tickers: List of company tickers.
+            tickers: A company ticker or a sequence of tickers.
             freq: Period of data, can be quarterly (Q) or annual (A).
-            metrics: List of specific metrics to retrieve. If None, it returns
-                all metrics available for balance sheet.
+            metrics: Specific metrics to retrieve. All available balance-sheet
+                metrics are returned when omitted.
+
         Returns:
-            DataFrame with financial data.
+            A DataFrame with columns ``ticker``, ``metric``, ``freq``, ``date``
+            and ``value``.
 
         """
 
@@ -257,13 +285,17 @@ class YahooProvider:
         return self._concat_frames(dfs)
 
     def get_dividends(self, tickers: str | Sequence[str]) -> DataFrame:
-        """Gets dividend data of a company.
+        """Get dividend data for one or more companies.
+
+        Dividend events are represented by :class:`datetime.date` values in the
+        ``ts`` column, using the exchange timezone reported by Yahoo when
+        available and the UTC date as fallback.
 
         Args:
-            tickers: List of company tickers.
+            tickers: A company ticker or a sequence of tickers.
 
         Returns:
-            DataFrame with dividend data.
+            A DataFrame with columns ``ticker``, ``ts`` and ``dividend``.
 
         """
 

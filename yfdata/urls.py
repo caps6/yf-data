@@ -99,8 +99,9 @@ def build_url_financials(ticker: str, freq: str, mapping: dict) -> str:
 
     Args:
         ticker: Stock code.
-        freq: Data sampling, can be ``Q`` (quarterly) or ``A`` (annual).
-        mapping: Mapping from names of metrics to retrieve and their yahoo names.
+        freq: Reporting frequency: ``Q`` (quarterly), ``A`` (annual), or
+            ``TTM`` (trailing twelve months).
+        mapping: Mapping from canonical metric names to Yahoo metric names.
 
     Returns:
         String of the endpoint URL.
@@ -155,6 +156,7 @@ def build_url_dividends(ticker: str) -> str:
 
 
 def finalize_url(url: str) -> str:
+    """Append the common Yahoo Finance locale and CORS query parameters."""
 
     url += "&lang=en-US&region=US"
     url += "&corsDomain=finance.yahoo.com"

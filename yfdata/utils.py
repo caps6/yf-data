@@ -6,13 +6,20 @@ from .constants import T1M, T1W, T5Y
 
 
 def eval_past_dt(timeframe: str, date_ref: datetime | None = None) -> datetime:
-    """Computes a datetime in the past according to a given timeframe or to
-    given number of minutes. All datetimes are in UTC zone.
+    """Return a UTC datetime shifted backwards by a supported timeframe.
 
-    Allowed values for timeframe are:
-    - '1D' (1 day ago),
-    - '1M' (1 month ago),
+    Naive reference values are interpreted as UTC; aware values are normalized
+    to UTC before applying the shift.
 
+    Args:
+        timeframe: ``1W`` (7 days), ``1M`` (30 days), or ``5Y`` (1826 days).
+        date_ref: Reference datetime. Current UTC time is used when omitted.
+
+    Returns:
+        A timezone-aware UTC datetime.
+
+    Raises:
+        ValueError: If ``timeframe`` is unsupported.
     """
 
     if date_ref is None:
@@ -39,7 +46,17 @@ def eval_past_dt(timeframe: str, date_ref: datetime | None = None) -> datetime:
 
 
 def datetime2timestamp(date_ref: datetime | None = None) -> int:
-    """Convert a datetime to a Unix timestamp, interpreting naive values as UTC."""
+    """Convert a datetime to an integer Unix timestamp.
+
+    Naive values are interpreted as UTC and aware values are normalized to UTC.
+    Current UTC time is used when ``date_ref`` is omitted.
+
+    Args:
+        date_ref: Datetime to convert. Current UTC time is used when omitted.
+
+    Returns:
+        Whole seconds since the Unix epoch.
+    """
 
     if date_ref is None:
         date_ref = datetime.now(UTC)
@@ -52,6 +69,13 @@ def datetime2timestamp(date_ref: datetime | None = None) -> int:
 
 
 def timestamp2datetime(timestamp: int) -> datetime:
-    """Convert a Unix timestamp to a timezone-aware UTC datetime."""
+    """Convert a Unix timestamp to a timezone-aware UTC datetime.
+
+    Args:
+        timestamp: Seconds since the Unix epoch.
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
 
     return datetime.fromtimestamp(timestamp, tz=UTC)
